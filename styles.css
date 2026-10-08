@@ -207,6 +207,7 @@ body {
     padding: 12px 16px;
     background: #f3f4f6;
     border-top: 1px solid #d1d5db;
+    align-items: center;
 }
 
 .composer input {
@@ -216,6 +217,12 @@ body {
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     font-size: 1rem;
+}
+
+.composer-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
 }
 
 .composer input:disabled {
@@ -233,9 +240,28 @@ body {
     cursor: pointer;
 }
 
+.composer .secondary-btn {
+    background: #4b5563;
+}
+
 .composer button:disabled {
     background: #93c5fd;
     cursor: not-allowed;
+}
+
+.recovery-status {
+    padding: 8px 16px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.recovery-status.success {
+    color: #166534;
+}
+
+.recovery-status.warning {
+    color: #92400e;
 }
 
 @media (max-width: 600px) {

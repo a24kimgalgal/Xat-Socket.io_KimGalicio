@@ -40,15 +40,23 @@
 
                 <form class="composer" id="messageForm">
                     <input id="messageInput" type="text" placeholder="Escriu un missatge..." autocomplete="off" disabled />
-                    <button id="sendBtn" type="submit" disabled>Enviar</button>
+                    <div class="composer-actions">
+                        <button id="disconnectBtn" type="button" class="secondary-btn">Desconnectar</button>
+                        <button id="sendBtn" type="submit" disabled>Enviar</button>
+                    </div>
                 </form>
+                <div id="recoveryStatus" class="recovery-status" aria-live="polite">Estat de recuperació: pendent</div>
             </div>
         </section>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io();
+        const socket = io({
+            reconnectionDelay: 10000,
+            reconnectionDelayMax: 10000,
+            randomizationFactor: 0
+        });
         const usernameInput = document.getElementById('username');
         const joinBtn = document.getElementById('joinBtn');
         const errorMessage = document.getElementById('errorMessage');
@@ -59,8 +67,10 @@
         const messageInput = document.getElementById('messageInput');
         const messagesContainer = document.getElementById('messages');
         const sendBtn = document.getElementById('sendBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
         const connectionStatus = document.getElementById('connectionStatus');
         const connectionDot = document.getElementById('connectionDot');
+        const recoveryStatus = document.getElementById('recoveryStatus');
 
         function updateConnectionState() {
             const connected = socket.connected;
@@ -71,6 +81,22 @@
             connectionStatus.innerHTML = `<span id="connectionDot" class="dot ${connected ? '' : 'offline'}"></span> ${connected ? 'En línia' : 'Desconnectat'}`;
             messageInput.disabled = !connected || !hasUser;
             sendBtn.disabled = !connected || !hasUser;
+            disconnectBtn.disabled = !hasUser;
+        }
+
+        function updateRecoveryStatus() {
+            const recovered = Boolean(socket.recovered);
+
+            if (recovered) {
+                recoveryStatus.textContent = `Recuperació: correcta (socket.recovered = ${recovered})`;
+                recoveryStatus.classList.add('success');
+                recoveryStatus.classList.remove('warning');
+                return;
+            }
+
+            recoveryStatus.textContent = 'Recuperació: sessió nova o estat no recuperat (socket.recovered = false)';
+            recoveryStatus.classList.add('warning');
+            recoveryStatus.classList.remove('success');
         }
 
         function showError(message) {
@@ -143,12 +169,36 @@
             messageInput.value = '';
         });
 
+        disconnectBtn.addEventListener('click', () => {
+            if (!socket.connected) {
+                return;
+            }
+
+            socket.io.engine.close();
+            updateConnectionState();
+        });
+
         socket.on('connect', () => {
             updateConnectionState();
+            updateRecoveryStatus();
+        });
+
+        socket.on('reconnect', () => {
+            updateConnectionState();
+            updateRecoveryStatus();
+            addMessage({
+                author: 'Sistema',
+                text: `Reconnectat. socket.recovered = ${Boolean(socket.recovered)}`,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
+                isSelf: false
+            });
         });
 
         socket.on('disconnect', () => {
             updateConnectionState();
+            recoveryStatus.textContent = `Desconnectat. socket.recovered = ${Boolean(socket.recovered)}`;
+            recoveryStatus.classList.add('warning');
+            recoveryStatus.classList.remove('success');
         });
 
         socket.on('join-success', ({ username }) => {
@@ -170,6 +220,10 @@
                 time,
                 isSelf
             });
+        });
+
+        socket.on('connect_error', () => {
+            updateRecoveryStatus();
         });
 
         socket.on('chat:error', ({ message }) => {

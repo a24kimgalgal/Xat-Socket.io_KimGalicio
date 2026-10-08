@@ -4,7 +4,11 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    connectionStateRecovery: {
+        maxDisconnectionDuration: 2 * 60 * 1000
+    }
+});
 
 const PORT = process.env.PORT || 6969;
 
@@ -22,6 +26,7 @@ io.on('connection', (socket) => {
     socket.on('join-chat', (payload = {}) => {
         const name = typeof payload?.name === 'string' ? payload.name : '';
         const cleanName = name.trim();
+        console.log(`Usuari connectat: ${cleanName}`);
 
         if (!isValidName(cleanName)) {
             socket.emit('join-error', {
@@ -56,6 +61,8 @@ io.on('connection', (socket) => {
                 hour12: false
             })
         };
+        
+        console.log(`Missatge enviat per ${cleanUsername}: ${cleanText}`);
 
         io.emit('chat:message', message);
     });

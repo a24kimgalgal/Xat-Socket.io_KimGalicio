@@ -10,7 +10,8 @@ const io = new Server(server, {
     }
 });
 
-const PORT = process.env.PORT || 6969;
+const PORT = 6969;
+const messages = [];
 
 function isValidName(value) {
     return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 20;
@@ -23,6 +24,14 @@ function isValidText(value) {
 app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
+    const lastMessageId = socket.handshake.query?.lastMessageId;
+    const lastId = Number(lastMessageId) || 0;
+
+    const missedMessages = messages.filter((message) => message.id > lastId);
+    if (missedMessages.length > 0) {
+        socket.emit('chat:missed', missedMessages);
+    }
+
     socket.on('join-chat', (payload = {}) => {
         const name = typeof payload?.name === 'string' ? payload.name : '';
         const cleanName = name.trim();
@@ -53,6 +62,7 @@ io.on('connection', (socket) => {
         }
 
         const message = {
+            id: Date.now() + Math.random(),
             username: cleanUsername,
             text: cleanText,
             time: new Date().toLocaleTimeString([], {
@@ -61,8 +71,13 @@ io.on('connection', (socket) => {
                 hour12: false
             })
         };
-        
+
         console.log(`Missatge enviat per ${cleanUsername}: ${cleanText}`);
+
+        messages.push(message);
+        if (messages.length > 200) {
+            messages.shift();
+        }
 
         io.emit('chat:message', message);
     });

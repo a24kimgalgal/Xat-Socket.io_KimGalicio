@@ -53,10 +53,11 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io({
-            reconnectionDelay: 10000,
-            reconnectionDelayMax: 10000,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 2000,
             randomizationFactor: 0
         });
+
         const usernameInput = document.getElementById('username');
         const joinBtn = document.getElementById('joinBtn');
         const errorMessage = document.getElementById('errorMessage');
@@ -69,86 +70,64 @@
         const sendBtn = document.getElementById('sendBtn');
         const disconnectBtn = document.getElementById('disconnectBtn');
         const connectionStatus = document.getElementById('connectionStatus');
-        const connectionDot = document.getElementById('connectionDot');
         const recoveryStatus = document.getElementById('recoveryStatus');
+
+        let lastMessageId = 0;
+
+        function addMessage({ author, text, time, isSelf }) {
+            const message = document.createElement('div');
+            message.className = `message ${isSelf ? 'self' : ''}`;
+
+            const header = document.createElement('div');
+            header.className = 'message-header';
+
+            const authorEl = document.createElement('span');
+            authorEl.className = 'message-author';
+            authorEl.textContent = author;
+
+            const timeEl = document.createElement('span');
+            timeEl.className = 'message-time';
+            timeEl.textContent = time;
+
+            const textEl = document.createElement('p');
+            textEl.className = 'message-text';
+            textEl.textContent = text;
+
+            header.appendChild(authorEl);
+            header.appendChild(timeEl);
+            message.appendChild(header);
+            message.appendChild(textEl);
+            messagesContainer.appendChild(message);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
 
         function updateConnectionState() {
             const connected = socket.connected;
             const hasUser = currentUser.textContent.trim().length > 0;
 
             connectionStatus.classList.toggle('offline', !connected);
-            connectionDot.classList.toggle('offline', !connected);
-            connectionStatus.innerHTML = `<span id="connectionDot" class="dot ${connected ? '' : 'offline'}"></span> ${connected ? 'En línia' : 'Desconnectat'}`;
+            connectionStatus.innerHTML = `<span class="dot ${connected ? '' : 'offline'}"></span> ${connected ? 'En línia' : 'Desconnectat'}`;
             messageInput.disabled = !connected || !hasUser;
             sendBtn.disabled = !connected || !hasUser;
             disconnectBtn.disabled = !hasUser;
+            disconnectBtn.textContent = connected ? 'Desconnectar' : 'Connectar';
         }
 
-        function updateRecoveryStatus() {
-            const recovered = Boolean(socket.recovered);
-
-            if (recovered) {
-                recoveryStatus.textContent = `Recuperació: correcta (socket.recovered = ${recovered})`;
-                recoveryStatus.classList.add('success');
-                recoveryStatus.classList.remove('warning');
-                return;
-            }
-
-            recoveryStatus.textContent = 'Recuperació: sessió nova o estat no recuperat (socket.recovered = false)';
-            recoveryStatus.classList.add('warning');
-            recoveryStatus.classList.remove('success');
-        }
-
-        function showError(message) {
-            errorMessage.textContent = message;
-        }
-
-        function hideError() {
-            errorMessage.textContent = '';
-        }
-
-        function validateName(name) {
-            const trimmed = name.trim();
-            return trimmed.length > 0 && trimmed.length <= 20;
-        }
-
-        function addMessage({ author, text, time, isSelf }) {
-            const messageElement = document.createElement('div');
-            messageElement.className = `message ${isSelf ? 'self' : ''}`;
-
-            const header = document.createElement('div');
-            header.className = 'message-header';
-
-            const authorElement = document.createElement('span');
-            authorElement.className = 'message-author';
-            authorElement.textContent = author;
-
-            const timeElement = document.createElement('span');
-            timeElement.className = 'message-time';
-            timeElement.textContent = time;
-
-            header.appendChild(authorElement);
-            header.appendChild(timeElement);
-
-            const textElement = document.createElement('p');
-            textElement.className = 'message-text';
-            textElement.textContent = text;
-
-            messageElement.appendChild(header);
-            messageElement.appendChild(textElement);
-            messagesContainer.appendChild(messageElement);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        function updateRecoveryStatus(message) {
+            recoveryStatus.textContent = message;
+            recoveryStatus.classList.toggle('success', message.includes('correcta'));
+            recoveryStatus.classList.toggle('warning', !message.includes('correcta'));
         }
 
         joinBtn.addEventListener('click', () => {
-            const name = usernameInput.value;
+            const name = usernameInput.value.trim();
 
-            if (!validateName(name)) {
-                showError('El nom no pot estar buit ni contenir només espais i ha de tenir com a màxim 20 caràcters.');
+            if (!name || name.length > 20) {
+                errorMessage.textContent = 'El nom no pot estar buit ni tenir més de 20 caràcters.';
                 return;
             }
 
-            hideError();
+            errorMessage.textContent = '';
             socket.emit('join-chat', { name });
         });
 
@@ -164,41 +143,41 @@
                 return;
             }
 
-            const username = currentUser.textContent.trim();
-            socket.emit('chat:send', { username, text });
+            socket.emit('chat:send', {
+                username: currentUser.textContent.trim(),
+                text
+            });
+
             messageInput.value = '';
         });
 
         disconnectBtn.addEventListener('click', () => {
-            if (!socket.connected) {
+            if (!currentUser.textContent.trim()) {
                 return;
             }
 
-            socket.io.engine.close();
-            updateConnectionState();
+            if (socket.connected) {
+                socket.disconnect();
+            } else {
+                socket.connect();
+            }
         });
 
         socket.on('connect', () => {
+            const params = new URLSearchParams({ lastMessageId: String(lastMessageId) });
+            socket.io.opts.query = params.toString();
             updateConnectionState();
-            updateRecoveryStatus();
+            updateRecoveryStatus('Recuperació: pendent');
         });
 
         socket.on('reconnect', () => {
             updateConnectionState();
-            updateRecoveryStatus();
-            addMessage({
-                author: 'Sistema',
-                text: `Reconnectat. socket.recovered = ${Boolean(socket.recovered)}`,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false }),
-                isSelf: false
-            });
+            updateRecoveryStatus('Recuperació: correcta');
         });
 
         socket.on('disconnect', () => {
             updateConnectionState();
-            recoveryStatus.textContent = `Desconnectat. socket.recovered = ${Boolean(socket.recovered)}`;
-            recoveryStatus.classList.add('warning');
-            recoveryStatus.classList.remove('success');
+            updateRecoveryStatus('Desconnectat. Recuperació pendent');
         });
 
         socket.on('join-success', ({ username }) => {
@@ -209,25 +188,40 @@
         });
 
         socket.on('join-error', ({ message }) => {
-            showError(message || 'El nom no és vàlid.');
+            errorMessage.textContent = message || 'El nom no és vàlid.';
         });
 
-        socket.on('chat:message', ({ username, text, time }) => {
-            const isSelf = username === currentUser.textContent.trim();
+        socket.on('chat:message', (message) => {
+            if (message.id > lastMessageId) {
+                lastMessageId = message.id;
+            }
+
+            const isSelf = message.username === currentUser.textContent.trim();
             addMessage({
-                author: username,
-                text,
-                time,
+                author: message.username,
+                text: message.text,
+                time: message.time,
                 isSelf
             });
         });
 
-        socket.on('connect_error', () => {
-            updateRecoveryStatus();
+        socket.on('chat:missed', (messages) => {
+            messages.forEach((message) => {
+                if (message.id > lastMessageId) {
+                    lastMessageId = message.id;
+                }
+
+                addMessage({
+                    author: message.username,
+                    text: message.text,
+                    time: message.time,
+                    isSelf: message.username === currentUser.textContent.trim()
+                });
+            });
         });
 
         socket.on('chat:error', ({ message }) => {
-            showError(message || 'El missatge no és vàlid.');
+            errorMessage.textContent = message || 'El missatge no és vàlid.';
         });
 
         updateConnectionState();

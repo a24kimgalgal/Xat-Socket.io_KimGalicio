@@ -78,3 +78,81 @@ Al client:
 | **Sense recuperació activada** | Els missatges enviats per altres clients mentre la pestanya estava desconnectada **es perden** per a aquest client. | `undefined` / `false` | El servidor no reté un buffer de paquets per a aquesta connexió; en tornar, comença una sessió neta sense historial intermedi. |
 | **Amb `connectionStateRecovery` activat** | Els missatges enviats durant la caiguda **es recuperen automàticament** en restablir el transport. | `true` | L'adaptador de Socket.IO emmagatzema a la memòria temporal els esdeveniments pendents de la sessió durant la finestra de 2 minuts i els reenvia al restablir el transport. |
 | **Després de reiniciar el servidor Node** | Els missatges enviats abans o durant el reinici **es perden** i no es reben. | `false` | Com que s'utilitza l'adaptador en memòria per defecte (*InMemoryAdapter*), la memòria RAM del procés Node s'esborra en reiniciar-se. Es crea una nova instància i es descarten les sessions prèvies. |
+
+---
+
+### Ampliació 3: Escalat horitzontal (`node:cluster` i `@socket.io/cluster-adapter`)
+
+Aquesta branca (`escalat-horitzontal`) implementa l'escalat horitzontal utilitzant el mòdul natiu `node:cluster` de Node.js i l'adaptador de Socket.IO `@socket.io/cluster-adapter`, tal com s'especifica al Pas 9 del tutorial oficial de Socket.IO.
+
+#### 1. Configuració de processos treballadors
+El procés primari (`cluster.isPrimary`) bifurca dos processos treballadors (*workers*):
+- **Treballador 1**: Escolta al port `3000` (PID independent).
+- **Treballador 2**: Escolta al port `3001` (PID independent).
+
+Cada pestanya del navegador es connecta directament a un port (`http://localhost:3000` o `http://localhost:3001`), sense requerir cap balancejador de càrrega intermedi.
+
+#### 2. Comandes per provar els dos escenaris
+
+##### A. Fase 1: Prova SENSE adaptador (processos aïllats)
+Executa el servidor amb el flag `--no-adapter`:
+```bash
+npm run start:no-adapter
+```
+*O bé:*
+```bash
+node server.js --no-adapter
+```
+
+**Comportament observat:**
+1. Obre una pestanya a `http://localhost:3000` i una altra a `http://localhost:3001`.
+2. Envia un missatge des de `http://localhost:3000`.
+3. **El missatge NO arriba a la pestanya de `http://localhost:3001`**.
+4. Al terminal es pot observar que el missatge només és processat pel worker del port 3000, ja que cadascun té la seva pròpia memòria independent.
+
+##### B. Fase 2: Prova AMB adaptador (`@socket.io/cluster-adapter`)
+Executa el servidor en mode clúster normal:
+```bash
+npm start
+```
+*O bé:*
+```bash
+node server.js
+```
+
+**Comportament observat:**
+1. Obre una pestanya a `http://localhost:3000` i una altra a `http://localhost:3001`.
+2. Envia un missatge des de `http://localhost:3000`.
+3. **El missatge arriba instantàniament a la pestanya de `http://localhost:3001`**.
+4. A la interfície web i al terminal es mostra el **PID** i el **Port** de procedència:
+   - Client a Port 3000 (ex: PID 23184) emet el missatge.
+   - Client a Port 3001 (ex: PID 18216) rep el missatge acompanyat de la insígnia `⇄ Port 3000 (PID: 23184)`.
+
+##### C. Prova automatitzada
+Pots executar el test automatitzat en qualsevol moment amb:
+```bash
+npm run test:cluster
+```
+Aquest script connecta dos clients Socket.IO simultanis (un al port 3000 i l'altre al 3001) i verifica la comunicació bidireccional entre ambdós processos.
+
+---
+
+#### 3. Preguntes Teòriques de l'Ampliació 3
+
+##### Per què dos processos Node.js no comparteixen automàticament la memòria?
+Node.js s'executa sobre el motor JavaScript V8 en un model d'un sol fil d'execució (*single thread*) per procés. Quan utilitzem `node:cluster`, es creen processos fills independents mitjançant crides al sistema operatiu (`fork`). Cada procés té el seu propi espai d'adreçament de memòria virtual totalment protegit i aïllat pel kernel del sistema operatiu. Per tant, els objectes, variables, connexions de sòcols i col·leccions en memòria (com els usuaris o les sales) que existeixen en el procés del port 3000 són completament inaccessibles per al procés del port 3001.
+
+##### Què aporta l'adaptador (`@socket.io/cluster-adapter`)?
+Per defecte, Socket.IO emmagatzema les connexions i sales a la memòria del procés (`InMemoryAdapter`). En un entorn de clúster, un missatge emès amb `io.emit()` o `io.to().emit()` només arribaria als clients connectats a aquell procés concret.  
+`@socket.io/cluster-adapter` resol aquest problema aprofitant el canal de comunicació entre processos (**IPC** - *Inter-Process Communication*) natiu de Node.js:
+1. Al procés primari s'inicialitza `setupPrimary()`.
+2. A cada procés fill s'assigna `createAdapter()`.
+3. Quan qualsevol treballador fa un `io.emit()`, l'adaptador intercepta el paquet i l'envia via IPC al procés primari, el qual el retransmet immediatament a tots els altres treballadors. Cada treballador rep el paquet i el transmet als seus respectius clients connectats.
+
+##### Per què no cal desplegar un balancejador en aquesta pràctica?
+Un balancejador de càrrega (com Nginx o HAProxy) és necessari quan hi ha múltiples servidors escoltant darrere d'una única adreça pública/port (per exemple el port 80 o 443), requerint *sticky sessions* perquè les peticions d'un mateix client vagin sempre al mateix procés.  
+En aquesta pràctica, assignem manualment ports diferents a cada procés (`3000` i `3001`). Com que cada pestanya del navegador s'obre directament contra el port del procés desitjat (`http://localhost:3000` o `http://localhost:3001`), la connexió ja està dirigida manualment i no es requereix cap encaminament intermedi.
+
+##### Quina és la relació entre `@socket.io/cluster-adapter` i `connectionStateRecovery`?
+Tal com s'indica a la documentació oficial de Socket.IO, `@socket.io/cluster-adapter` **no té suport actualment per a `connectionStateRecovery`**. Aquesta funcionalitat requereix un magatzem compartit capaç de guardar un buffer persistent dels missatges transmesos durant la desconnexió (com ara l'adaptador basat en Redis Streams o MongoDB). Per aquesta raó, l'ampliació de recuperació de connexió i l'ampliació de difusió multi-procés s'han avaluat de manera independent.
+

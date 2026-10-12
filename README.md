@@ -117,35 +117,32 @@ Aquesta ampliació permet crear converses independents en sales privades identif
 
 ---
 
-## 🧪 Guia de Comprovació Pas a Pas (Demostració de 3 Pestanyes)
+## 🧪 Proves de Comprovació i Captures de Pantalla
 
-Per verificar el funcionament complet i capturar les evidències per al lliurament:
+A continuació es mostren les evidències gràfiques de les proves realitzades amb 3 pestanyes simultànies, verificant el compliment de tots els requisits de l'Ampliació 2:
 
-1. **Arrencar el servidor:**
-   ```bash
-   npm start
-   ```
-2. **Obrir 3 pestanyes a `http://localhost:6969`:**
-   - **Pestanya 1 (Usuari: Alícia):**
-     1. Escriu el nom `Alícia`.
-     2. Prem **«Crear Sala Nova»**.
-     3. Entrarà a la sala i veurà el codi generat (per exemple: `ABC12`).
-     4. Fes clic a **«📋 Copiar codi»**.
-     5. A la barra lateral de participants veurà: `Participants (1)`: `Alícia (Tu)`.
-   - **Pestanya 2 (Usuari: Bernat):**
-     1. Escriu el nom `Bernat`.
-     2. Enganxa el codi de la sala d'Alícia (`ABC12`) a l'opció «Unir-se a una sala».
-     3. Prem **«Entrar a la Sala»**.
-     4. Tant a la pestanya 1 com a la 2 apareixerà l'avís de sistema «Bernat s'ha unit a la sala» i la llista s'actualitzarà automàticament a `Participants (2)`: `Alícia` i `Bernat`.
-   - **Pestanya 3 (Usuari: Clara):**
-     1. Escriu el nom `Clara`.
-     2. Prem **«Crear Sala Nova»** (es crearà una sala diferent, ex: `XYZ89`).
-     3. La llista de Clara només tindrà `Participants (1)`: `Clara (Tu)`.
-3. **Comprovar l'aïllament dels missatges:**
-   - Des d'Alícia (Pestanya 1), envia: *"Hola Bernat, estem a la sala privada!"*.
-   - Comprova que **Bernat (Pestanya 2) el rep immediatament**, mentre que **Clara (Pestanya 3) NO rep res**, mantenint les converses 100% aïllades.
-4. **Comprovar la desconnexió en temps real:**
-   - Tanca la pestanya 2 (Bernat).
-   - Observa com, a la pestanya 1 (Alícia), apareix automàticament l'avís «Bernat s'ha desconnectat» i el comptador de participants baixa a `Participants (1)`.
-5. **Comprovar error de codi inexistent:**
-   - Obre una nova pestanya, posa nom `David`, introdueix un codi inexistent (ex: `ZZZZZ`) i prem entrar. Es mostrarà el missatge: *"La sala amb codi "ZZZZZ" no existeix o ja s'ha tancat."*
+### 📸 Prova 1: Entrada dels usuaris i selecció de sales
+Tres usuaris diferents introdueixen els seus noms (`Kim`, `Ian` i `Marc`). `Kim` crea una nova sala privada per compartir-la amb `Ian`, i `Marc` es crea una altra sala independent.
+
+![Prova 1](img/Prova1.png)
+
+---
+
+### 📸 Prova 2: Unió a les sales i llistes de participants independents
+S'observa com a la sala creada per `Kim` s'hi uneix `Ian` introduint el codi, de manera que tots dos queden registrats a la mateixa sala (`Participants: 2`). Mentrestant, `Marc` es troba aïllat a la seva pròpia sala (`Participants: 1`).
+
+![Prova 2](img/Prova2.png)
+
+---
+
+### 📸 Prova 3: Aïllament complet de converses entre sales
+`Kim` i `Ian` s'envien missatges mútuament dins la seva sala. Es comprova que aquests missatges **no arriben** a la sala d'en `Marc`. `Marc` pot escriure i parlar a la seva sala sense rebre ni interferir en la conversa dels altres dos usuaris.
+
+![Prova 3](img/Prova3.png)
+
+---
+
+### 📸 Prova 4: Desconnexió en temps real i actualització de participants
+La pestanya d'`Ian` es tanca. Immediatament, al xat de la sala d'en `Kim` es mostra la notificació de sistema indicant que `Ian` s'ha desconnectat, i el comptador de participants s'actualitza automàticament restant-ne un.
+
+![Prova 4](img/Prova4.png)

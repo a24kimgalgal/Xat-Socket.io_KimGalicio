@@ -4,111 +4,66 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ampliació 3 – Escalat horitzontal (node:cluster)</title>
+    <title>Xat Socket.IO - Escalat horitzontal</title>
     <link rel="stylesheet" href="/styles.css" />
 </head>
 
 <body>
     <main class="app">
-        <!-- Secció 1: Formulari d'entrada -->
         <section id="loginFormSection" class="login-card">
-            <div class="cluster-badge-top">
-                <span class="pulse-dot"></span>
-                <span>Instància actual: <strong id="loginInstanceInfo">Detectant...</strong></span>
-            </div>
-
             <h1>Entrada al xat</h1>
-            <p class="subtitle">Demostració d'escalat horitzontal amb <code>node:cluster</code> i <code>@socket.io/cluster-adapter</code></p>
-
+            <p class="subtitle">Connectat a http://localhost:<strong id="loginPort"></strong></p>
             <form id="loginForm" autocomplete="off">
                 <div class="login-field">
-                    <label for="username">Àlies / Nom (màx. 20 caràcters):</label>
-                    <input id="username" type="text" maxlength="20" placeholder="Ex: Kim" required autofocus />
+                    <label for="username">Nom</label>
+                    <input id="username" type="text" maxlength="20" placeholder="Escriu el teu nom" required autofocus />
                 </div>
-                <button id="joinBtn" type="submit" class="login-btn">Entrar al xat</button>
+                <button id="joinBtn" type="submit" class="login-btn">Entrar</button>
             </form>
             <div id="loginError" class="error" aria-live="polite"></div>
-
-            <div class="info-box">
-                <p>💡 <strong>Com provar l'escalat:</strong> Obre una pestanya a <code>http://localhost:3000</code> i una altra a <code>http://localhost:3001</code>. Cada pestanya es connecta directament a un procés Node.js independent.</p>
-            </div>
         </section>
 
-        <!-- Secció 2: Finestra del xat -->
         <section id="chatSection" class="chat-card hidden">
             <div class="chat-window">
                 <header class="chat-header">
-                    <div class="chat-header-main">
-                        <div class="chat-title">Xat Escalat Horitzontal</div>
-                        <div class="chat-user">Usuari: <strong id="currentUser"></strong></div>
-                    </div>
-
-                    <div class="chat-header-meta">
-                        <div class="instance-badge" id="headerInstanceBadge" title="Procés i port assignats a aquesta pestanya">
-                            <span class="dot-instance"></span>
-                            <span id="headerInstanceText">Port: Carregant...</span>
-                        </div>
-                        <div id="connectionStatus" class="connection-status">
-                            <span id="connectionDot" class="dot"></span>
-                            <span id="connectionText">Connectat</span>
-                        </div>
+                    <div class="chat-title">Xat (Port <span id="headerPort"></span>)</div>
+                    <div class="chat-user">Usuari: <strong id="currentUser"></strong></div>
+                    <div id="connectionStatus" class="connection-status">
+                        <span id="connectionDot" class="dot"></span>
+                        <span id="connectionText">Connectat</span>
                     </div>
                 </header>
 
-                <div class="cluster-status-bar" id="clusterStatusBar">
-                    <span id="clusterStatusText">Estat clúster: Inicialitzant...</span>
-                </div>
-
-                <div id="messages" class="messages" aria-live="polite">
-                    <div class="system-welcome">
-                        <p>Benvingut/da al xat amb difusió multi-procés. Els missatges enviats des de qualsevol port (3000 o 3001) es mostraran aquí.</p>
-                    </div>
-                </div>
+                <div id="messages" class="messages" aria-live="polite"></div>
 
                 <div id="chatErrorMessage" class="error chat-error" aria-live="polite"></div>
 
                 <form class="composer" id="messageForm" autocomplete="off">
                     <input id="messageInput" type="text" maxlength="500" placeholder="Escriu un missatge..." autocomplete="off" disabled />
-                    <div class="composer-actions">
-                        <button id="sendBtn" type="submit" disabled>Enviar</button>
-                    </div>
+                    <button id="sendBtn" type="submit" disabled>Enviar</button>
                 </form>
-
-                <footer class="chat-footer">
-                    <div class="cluster-explanation">
-                        <span>ℹ️ Sense adaptador, la memòria dels processos no es comparteix. Amb <code>@socket.io/cluster-adapter</code>, els missatges es difonen via IPC.</span>
-                    </div>
-                </footer>
             </div>
         </section>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Connecta automàticament a l'origen actual (http://localhost:3000 o http://localhost:3001)
         const socket = io();
 
-        // Variables d'instància
-        let currentServerPort = window.location.port || '3000';
-        let currentServerPid = null;
-        let isAdapterEnabled = false;
+        const currentPort = window.location.port || '3000';
+        document.getElementById('loginPort').textContent = currentPort;
+        document.getElementById('headerPort').textContent = currentPort;
 
-        // Elements del DOM
         const loginFormSection = document.getElementById('loginFormSection');
         const loginForm = document.getElementById('loginForm');
         const usernameInput = document.getElementById('username');
         const loginError = document.getElementById('loginError');
-        const loginInstanceInfo = document.getElementById('loginInstanceInfo');
 
         const chatSection = document.getElementById('chatSection');
         const currentUser = document.getElementById('currentUser');
-        const headerInstanceBadge = document.getElementById('headerInstanceBadge');
-        const headerInstanceText = document.getElementById('headerInstanceText');
         const connectionStatus = document.getElementById('connectionStatus');
         const connectionDot = document.getElementById('connectionDot');
         const connectionText = document.getElementById('connectionText');
-        const clusterStatusBar = document.getElementById('clusterStatusBar');
-        const clusterStatusText = document.getElementById('clusterStatusText');
 
         const messagesContainer = document.getElementById('messages');
         const chatErrorMessage = document.getElementById('chatErrorMessage');
@@ -116,77 +71,27 @@
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
 
-        // Mostra inicialment el port de la URL
-        loginInstanceInfo.textContent = `Port ${currentServerPort}`;
-
-        // Rebre informació de la instància des del servidor
-        socket.on('server:instance', (info) => {
-            currentServerPort = info.port;
-            currentServerPid = info.pid;
-            isAdapterEnabled = info.useAdapter;
-
-            updateInstanceUI();
-        });
-
-        function updateInstanceUI() {
-            const portStr = currentServerPort || window.location.port || '3000';
-            const pidStr = currentServerPid ? `PID ${currentServerPid}` : 'PID --';
-            const adapterText = isAdapterEnabled ? 'Adaptador clúster: ACTIU' : 'Sense adaptador (Aïllat)';
-
-            loginInstanceInfo.textContent = `Port ${portStr} (${pidStr}) - ${adapterText}`;
-            headerInstanceText.textContent = `Port: ${portStr} | ${pidStr}`;
-
-            if (clusterStatusText) {
-                clusterStatusText.innerHTML = `Instància local: <strong>Port ${portStr}</strong> (${pidStr}) &nbsp;|&nbsp; <strong>${adapterText}</strong>`;
-                if (!isAdapterEnabled) {
-                    clusterStatusBar.classList.add('no-adapter');
-                } else {
-                    clusterStatusBar.classList.remove('no-adapter');
-                }
-            }
-        }
-
-        // Funció per afegir missatges al xat amb textContent (seguretat anti-XSS)
-        function addMessage({ author, text, time, senderPort, senderPid, isSelf }) {
+        function addMessage({ author, text, time, isSelf }) {
             const messageEl = document.createElement('div');
             messageEl.className = `message ${isSelf ? 'self' : ''}`;
 
             const headerEl = document.createElement('div');
             headerEl.className = 'message-header';
 
-            const authorWrapper = document.createElement('div');
-            authorWrapper.className = 'author-wrapper';
-
             const authorEl = document.createElement('span');
             authorEl.className = 'message-author';
             authorEl.textContent = author;
-            authorWrapper.appendChild(authorEl);
-
-            // Etiqueta del procés/port d'on prové el missatge
-            const originPort = senderPort || currentServerPort;
-            const originPid = senderPid || '?';
-            const isDifferentWorker = originPort && String(originPort) !== String(currentServerPort);
-
-            const badgeEl = document.createElement('span');
-            badgeEl.className = `message-worker-badge ${isDifferentWorker ? 'remote-worker' : 'local-worker'}`;
-            badgeEl.textContent = isDifferentWorker
-                ? `⇄ Port ${originPort} (PID: ${originPid})`
-                : `✓ Port ${originPort} (PID: ${originPid})`;
-            badgeEl.title = isDifferentWorker
-                ? 'Missatge rebut d’un altre procés treballador gràcies a @socket.io/cluster-adapter'
-                : 'Missatge originat en aquest mateix procés treballador';
-            authorWrapper.appendChild(badgeEl);
 
             const timeEl = document.createElement('span');
             timeEl.className = 'message-time';
             timeEl.textContent = time;
 
-            headerEl.appendChild(authorWrapper);
+            headerEl.appendChild(authorEl);
             headerEl.appendChild(timeEl);
 
             const textEl = document.createElement('p');
             textEl.className = 'message-text';
-            textEl.textContent = text; // textContent per seguretat
+            textEl.textContent = text;
 
             messageEl.appendChild(headerEl);
             messageEl.appendChild(textEl);
@@ -195,32 +100,24 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Funció per actualitzar l'estat visual de connexió
         function updateConnectionState() {
             const connected = socket.connected;
             const hasUser = currentUser.textContent.trim().length > 0;
 
-            if (connected) {
-                connectionStatus.classList.remove('offline');
-                connectionDot.classList.remove('offline');
-                connectionText.textContent = 'En línia';
-            } else {
-                connectionStatus.classList.add('offline');
-                connectionDot.classList.add('offline');
-                connectionText.textContent = 'Desconnectat';
-            }
+            connectionStatus.classList.toggle('offline', !connected);
+            connectionDot.classList.toggle('offline', !connected);
+            connectionText.textContent = connected ? 'En línia' : 'Desconnectat';
 
             messageInput.disabled = !connected || !hasUser;
             sendBtn.disabled = !connected || !hasUser;
         }
 
-        // 1. Formulari d'entrada
         loginForm.addEventListener('submit', (e) => {
             e.preventDefault();
             const name = usernameInput.value.trim();
 
             if (!name || name.length > 20) {
-                loginError.textContent = 'El nom no pot estar buit ni superar els 20 caràcters.';
+                loginError.textContent = 'El nom no és vàlid.';
                 return;
             }
 
@@ -228,7 +125,6 @@
             socket.emit('join-chat', { name });
         });
 
-        // 2. Enviament de missatges
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
             if (!socket.connected) return;
@@ -236,45 +132,26 @@
             const text = messageInput.value.trim();
             if (!text) return;
 
-            if (text.length > 500) {
-                chatErrorMessage.textContent = 'El missatge no pot superar els 500 caràcters.';
-                return;
-            }
-
             chatErrorMessage.textContent = '';
-            socket.emit('chat:send', {
-                username: currentUser.textContent.trim(),
-                text
-            });
+            socket.emit('chat:send', { text });
 
             messageInput.value = '';
             messageInput.focus();
         });
 
-        // 3. Esdeveniments de Socket.IO
         socket.on('connect', () => {
             updateConnectionState();
-            updateInstanceUI();
         });
 
-        socket.on('disconnect', (reason) => {
+        socket.on('disconnect', () => {
             updateConnectionState();
-            if (clusterStatusText) {
-                clusterStatusText.textContent = `Desconnectat del procés (${reason}). Reconnectant...`;
-            }
         });
 
-        socket.on('join-success', ({ username, serverPort, serverPid, useAdapter }) => {
+        socket.on('join-success', ({ username }) => {
             currentUser.textContent = username;
-            if (serverPort) currentServerPort = serverPort;
-            if (serverPid) currentServerPid = serverPid;
-            if (typeof useAdapter === 'boolean') isAdapterEnabled = useAdapter;
-
             loginFormSection.classList.add('hidden');
             chatSection.classList.remove('hidden');
-
             updateConnectionState();
-            updateInstanceUI();
             messageInput.focus();
         });
 
@@ -289,8 +166,6 @@
                 author: message.username,
                 text: message.text,
                 time: message.time,
-                senderPort: message.senderPort,
-                senderPid: message.senderPid,
                 isSelf
             });
         });
@@ -299,9 +174,7 @@
             chatErrorMessage.textContent = message || 'Error en enviar el missatge.';
         });
 
-        // Inicialització inicial
         updateConnectionState();
-        updateInstanceUI();
     </script>
 </body>
 

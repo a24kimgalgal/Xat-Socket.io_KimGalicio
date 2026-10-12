@@ -92,48 +92,27 @@ El procés primari (`cluster.isPrimary`) bifurca dos processos treballadors (*wo
 
 Cada pestanya del navegador es connecta directament a un port (`http://localhost:3000` o `http://localhost:3001`), sense requerir cap balancejador de càrrega intermedi.
 
-#### 2. Comandes per provar els dos escenaris
+#### 2. Com provar els dos escenaris
 
 ##### A. Fase 1: Prova SENSE adaptador (processos aïllats)
-Executa el servidor amb el flag `--no-adapter`:
-```bash
-npm run start:no-adapter
-```
-*O bé:*
-```bash
-node server.js --no-adapter
-```
-
-**Comportament observat:**
-1. Obre una pestanya a `http://localhost:3000` i una altra a `http://localhost:3001`.
-2. Envia un missatge des de `http://localhost:3000`.
-3. **El missatge NO arriba a la pestanya de `http://localhost:3001`**.
-4. Al terminal es pot observar que el missatge només és processat pel worker del port 3000, ja que cadascun té la seva pròpia memòria independent.
+Si a `server.js` es treu la configuració de `@socket.io/cluster-adapter` (sense cridar `setupPrimary()` ni passar `adapter: createAdapter()`):
+1. Executa:
+   ```bash
+   node server.js
+   ```
+2. Obre una pestanya a `http://localhost:3000` i una altra a `http://localhost:3001`.
+3. Envia un missatge des del port 3000.
+4. **Resultat**: El missatge **no arriba** a la pestanya del port 3001. Al terminal es veu que només el worker del port 3000 processa el missatge, demostrant que cada procés té la memòria aïllada.
 
 ##### B. Fase 2: Prova AMB adaptador (`@socket.io/cluster-adapter`)
-Executa el servidor en mode clúster normal:
-```bash
-npm start
-```
-*O bé:*
-```bash
-node server.js
-```
-
-**Comportament observat:**
-1. Obre una pestanya a `http://localhost:3000` i una altra a `http://localhost:3001`.
-2. Envia un missatge des de `http://localhost:3000`.
-3. **El missatge arriba instantàniament a la pestanya de `http://localhost:3001`**.
-4. A la interfície web i al terminal es mostra el **PID** i el **Port** de procedència:
-   - Client a Port 3000 (ex: PID 23184) emet el missatge.
-   - Client a Port 3001 (ex: PID 18216) rep el missatge acompanyat de la insígnia `⇄ Port 3000 (PID: 23184)`.
-
-##### C. Prova automatitzada
-Pots executar el test automatitzat en qualsevol moment amb:
-```bash
-npm run test:cluster
-```
-Aquest script connecta dos clients Socket.IO simultanis (un al port 3000 i l'altre al 3001) i verifica la comunicació bidireccional entre ambdós processos.
+Amb el codi del pas 9 configurat amb `setupPrimary()` i `adapter: createAdapter()`:
+1. Executa:
+   ```bash
+   node server.js
+   ```
+2. Obre les dues pestanyes (`http://localhost:3000` i `http://localhost:3001`).
+3. Envia un missatge des del port 3000.
+4. **Resultat**: El missatge **arriba immediatament** a la pestanya del port 3001. Al terminal es pot veure com cada pestanya està gestionada per un PID i port diferent, però `@socket.io/cluster-adapter` difon l'esdeveniment entre tots dos processos via IPC.
 
 ---
 

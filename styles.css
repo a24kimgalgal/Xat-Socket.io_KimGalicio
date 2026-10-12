@@ -27,11 +27,17 @@ body {
 }
 
 .login-card h1 {
-    margin: 0 0 28px;
+    margin: 0 0 20px;
     font-size: clamp(2rem, 2.4vw, 2.6rem);
     font-weight: 700;
     color: #111827;
     line-height: 1.2;
+}
+
+.subtitle {
+    margin: -10px 0 20px;
+    font-size: 0.95rem;
+    color: #4b5563;
 }
 
 .login-field {
@@ -207,7 +213,6 @@ body {
     padding: 12px 16px;
     background: #f3f4f6;
     border-top: 1px solid #d1d5db;
-    align-items: center;
 }
 
 .composer input {
@@ -217,12 +222,6 @@ body {
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     font-size: 1rem;
-}
-
-.composer-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
 }
 
 .composer input:disabled {
@@ -240,181 +239,9 @@ body {
     cursor: pointer;
 }
 
-.composer .secondary-btn {
-    background: #4b5563;
-}
-
 .composer button:disabled {
     background: #93c5fd;
     cursor: not-allowed;
-}
-
-.system-welcome {
-    text-align: center;
-    color: #6b7280;
-    font-size: 0.85rem;
-    font-style: italic;
-    padding: 8px 0;
-    border-bottom: 1px dashed #e5e7eb;
-    margin-bottom: 8px;
-}
-
-.system-welcome p {
-    margin: 0;
-}
-
-.chat-error {
-    padding: 4px 16px;
-    margin: 0;
-}
-
-/* Ampliació 3: Estils d'escalat clúster */
-.cluster-badge-top {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
-    background: #e0e7ff;
-    border: 1px solid #c7d2fe;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #3730a3;
-    margin-bottom: 16px;
-}
-
-.pulse-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: #4f46e5;
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.3);
-}
-
-.subtitle {
-    margin: -16px 0 24px;
-    font-size: 0.95rem;
-    color: #4b5563;
-}
-
-.info-box {
-    margin-top: 24px;
-    padding: 12px 16px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    border-radius: 8px;
-    font-size: 0.9rem;
-    color: #1e40af;
-    line-height: 1.4;
-}
-
-.info-box p {
-    margin: 0;
-}
-
-.info-box code {
-    background: #dbeafe;
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 0.9em;
-}
-
-.chat-header-main {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.chat-header-meta {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-}
-
-.instance-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    background: #1e293b;
-    border-radius: 6px;
-    color: #f8fafc;
-    font-size: 0.82rem;
-    font-weight: 600;
-    font-family: monospace;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.dot-instance {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: #38bdf8;
-}
-
-.cluster-status-bar {
-    padding: 8px 16px;
-    font-size: 0.82rem;
-    background: #ecfdf5;
-    border-bottom: 1px solid #a7f3d0;
-    color: #065f46;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
-
-.cluster-status-bar.no-adapter {
-    background: #fffbeb;
-    border-bottom: 1px solid #fde68a;
-    color: #92400e;
-}
-
-.author-wrapper {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.message-worker-badge {
-    display: inline-block;
-    padding: 2px 7px;
-    border-radius: 4px;
-    font-size: 0.72rem;
-    font-weight: 700;
-    font-family: monospace;
-}
-
-.local-worker {
-    background: #e2e8f0;
-    color: #334155;
-    border: 1px solid #cbd5e1;
-}
-
-.remote-worker {
-    background: #dcfce7;
-    color: #166534;
-    border: 1px solid #86efac;
-    animation: fadeInHighlight 0.4s ease;
-}
-
-@keyframes fadeInHighlight {
-    0% { transform: scale(0.95); opacity: 0.5; }
-    100% { transform: scale(1); opacity: 1; }
-}
-
-.chat-footer {
-    padding: 8px 16px;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    font-size: 0.78rem;
-    color: #64748b;
-}
-
-.cluster-explanation {
-    display: flex;
-    align-items: center;
 }
 
 @media (max-width: 600px) {

@@ -1,23 +1,18 @@
 {
-  "dependencies": {
-    "@socket.io/cluster-adapter": "^0.3.0",
-    "express": "^5.2.1",
-    "socket.io": "^4.8.4"
-  },
   "name": "socket_kimgalicio",
   "version": "1.0.0",
   "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "start:no-adapter": "node server.js --no-adapter",
-    "test:cluster": "node test_cluster.js"
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
-  "devDependencies": {
-    "socket.io-client": "^4.8.4"
+  "dependencies": {
+    "@socket.io/cluster-adapter": "^0.3.0",
+    "express": "^5.2.1",
+    "socket.io": "^4.8.4"
   }
 }

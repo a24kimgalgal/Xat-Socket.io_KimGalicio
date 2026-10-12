@@ -194,3 +194,18 @@ En aquesta pràctica, assignem manualment ports diferents a cada procés (`3000`
 
 #### Quina és la relació entre `@socket.io/cluster-adapter` i `connectionStateRecovery`?
 Tal com s'indica a la documentació oficial de Socket.IO, `@socket.io/cluster-adapter` **no té suport actualment per a `connectionStateRecovery`**. Aquesta funcionalitat requereix un magatzem compartit capaç de guardar un buffer persistent dels missatges transmesos durant la desconnexió (com ara l'adaptador basat en Redis Streams o MongoDB). Per aquesta raó, l'ampliació de recuperació de connexió i l'ampliació de difusió multi-procés s'han avaluat de manera independent.
+
+---
+
+## 🎥 Vídeos Demostratius (Pràctica Base i Ampliació 1)
+
+> 💡 **Espai per a vídeos:** A continuació es preparen els apartats per a enllaçar o incrustar els vídeos demostratius enregistrats per a la pràctica base i l'Ampliació 1. (En editar el fitxer des del web de GitHub, només cal arrossegar els fitxers de vídeo `.mp4` o `.mov` dins de cada secció perquè GitHub generi l'enllaç i reproductor automàticament).
+
+### 📹 Vídeo 1: Demostració del Xat Base en Temps Real
+<!-- Arrossega i deixa anar el vídeo de la pràctica base aquí des de l'editor de GitHub -->
+
+---
+
+### 📹 Vídeo 2: Demostració de l'Ampliació 1 (Recuperació d'Estat i Desconnexions)
+<!-- Arrossega i deixa anar el vídeo de l'Ampliació 1 aquí des de l'editor de GitHub -->
+

@@ -202,10 +202,10 @@ Tal com s'indica a la documentació oficial de Socket.IO, `@socket.io/cluster-ad
 > 💡 **Espai per a vídeos:** A continuació es preparen els apartats per a enllaçar o incrustar els vídeos demostratius enregistrats per a la pràctica base i l'Ampliació 1. (En editar el fitxer des del web de GitHub, només cal arrossegar els fitxers de vídeo `.mp4` o `.mov` dins de cada secció perquè GitHub generi l'enllaç i reproductor automàticament).
 
 ### 📹 Vídeo 1: Demostració del Xat Base en Temps Real
-[<!-- Arrossega i deixa anar el vídeo de la pràctica base aquí des de l'editor de GitHub -->](https://www.youtube.com/watch?v=AAJIWIB4S2A)
+[Fes clic aquí per veure el vídeo de la pràctica base a YouTube](https://www.youtube.com/watch?v=AAJIWIB4S2A)
 
 ---
 
 ### 📹 Vídeo 2: Demostració de l'Ampliació 1 (Recuperació d'Estat i Desconnexions)
-[<!-- Arrossega i deixa anar el vídeo de l'Ampliació 1 aquí des de l'editor de GitHub -->](https://www.youtube.com/watch?v=1aYW4geFcv4)
+[Fes clic aquí per veure el vídeo de l'Ampliació 1 a YouTube](https://www.youtube.com/watch?v=1aYW4geFcv4)
 

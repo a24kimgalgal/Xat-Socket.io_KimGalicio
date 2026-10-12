@@ -114,6 +114,11 @@ Amb el codi del pas 9 configurat amb `setupPrimary()` i `adapter: createAdapter(
 3. Envia un missatge des del port 3000.
 4. **Resultat**: El missatge **arriba immediatament** a la pestanya del port 3001. Al terminal es pot veure com cada pestanya està gestionada per un PID i port diferent, però `@socket.io/cluster-adapter` difon l'esdeveniment entre tots dos processos via IPC.
 
+##### Evidència de funcionament
+A la següent captura de pantalla es pot observar la prova realitzada on l'Ian (connectat al port 3000) i en Kim (connectat al port 3001) es comuniquen satisfactòriament:
+
+![Prova 1 - Comunicació entre ports 3000 i 3001](./img/Prova1.png)
+
 ---
 
 #### 3. Preguntes Teòriques de l'Ampliació 3

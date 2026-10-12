@@ -21,22 +21,20 @@ body {
     background: #f4f4f5;
     border: 1px solid #d1d5db;
     border-radius: 14px;
-    min-height: 220px;
     padding: 28px 32px 22px;
     box-shadow: 0 4px 12px rgba(17, 24, 39, 0.06);
 }
 
 .login-card h1 {
-    margin: 0 0 28px;
-    font-size: clamp(2rem, 2.4vw, 2.6rem);
+    margin: 0 0 20px;
+    font-size: clamp(1.8rem, 2.2vw, 2.4rem);
     font-weight: 700;
     color: #111827;
     line-height: 1.2;
 }
 
 .login-field {
-    display: inline-block;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
 }
 
 .login-field label {
@@ -63,15 +61,35 @@ body {
     box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.15);
 }
 
+.room-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+}
+
+.room-box {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #fff;
+    padding: 14px;
+    flex: 1;
+    min-width: 200px;
+}
+
+.room-box h3 {
+    margin: 0 0 10px;
+    font-size: 1rem;
+}
+
 .login-btn {
-    display: block;
-    min-width: 120px;
-    padding: 10px 16px;
+    display: inline-block;
+    padding: 9px 16px;
     border: 1px solid #111827;
     border-radius: 6px;
     background: #ffffff;
     color: #111827;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -113,13 +131,14 @@ body {
     justify-content: space-between;
     align-items: center;
     gap: 12px;
-    padding: 14px 16px;
+    padding: 12px 16px;
     background: #e5e7eb;
     border-bottom: 1px solid #d1d5db;
+    flex-wrap: wrap;
 }
 
 .chat-title {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 700;
 }
 
@@ -153,6 +172,18 @@ body {
     background: #ef4444;
 }
 
+.chat-body {
+    display: flex;
+    background: #ffffff;
+}
+
+.chat-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
 .messages {
     height: 300px;
     overflow-y: auto;
@@ -175,6 +206,16 @@ body {
     margin-left: auto;
     background: #dbeafe;
     border-color: #bfdbfe;
+}
+
+.message.system {
+    align-self: center;
+    background: transparent;
+    border: none;
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 4px;
 }
 
 .message-header {
@@ -225,11 +266,6 @@ body {
     align-items: center;
 }
 
-.composer input:disabled {
-    background: #e5e7eb;
-    cursor: not-allowed;
-}
-
 .composer button {
     padding: 10px 18px;
     border: none;
@@ -249,6 +285,39 @@ body {
     cursor: not-allowed;
 }
 
+.chat-sidebar {
+    width: 190px;
+    background: #f9fafb;
+    border-left: 1px solid #d1d5db;
+    padding: 14px;
+    overflow-y: auto;
+}
+
+.chat-sidebar h3 {
+    margin: 0 0 10px;
+    font-size: 0.9rem;
+    color: #374151;
+}
+
+.chat-sidebar ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.chat-sidebar li {
+    font-size: 0.88rem;
+    color: #111827;
+}
+
+.chat-sidebar li.self {
+    font-weight: 700;
+    color: #2563eb;
+}
+
 .system-welcome {
     text-align: center;
     color: #6b7280;
@@ -257,15 +326,6 @@ body {
     padding: 8px 0;
     border-bottom: 1px dashed #e5e7eb;
     margin-bottom: 8px;
-}
-
-.system-welcome p {
-    margin: 0;
-}
-
-.chat-error {
-    padding: 4px 16px;
-    margin: 0;
 }
 
 .recovery-status {
@@ -298,34 +358,17 @@ body {
 }
 
 @media (max-width: 600px) {
-    .login-card {
-        padding: 22px 20px 18px;
+    .chat-body {
+        flex-direction: column;
     }
-
-    .login-card h1 {
-        margin-bottom: 20px;
-        font-size: 1.9rem;
-    }
-
-    .login-field input {
+    .chat-sidebar {
         width: 100%;
+        border-left: none;
+        border-top: 1px solid #d1d5db;
+        max-height: 120px;
     }
-
-    .login-btn {
-        width: 100%;
-    }
-
-    .chat-header,
     .composer {
         flex-direction: column;
         align-items: stretch;
-    }
-
-    .messages {
-        height: 240px;
-    }
-
-    .message {
-        max-width: 90%;
     }
 }

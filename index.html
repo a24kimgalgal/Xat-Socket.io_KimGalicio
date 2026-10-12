@@ -10,45 +10,66 @@
 
 <body>
     <main class="app">
-        <!-- Secció 1: Formulari d'entrada -->
         <section id="loginFormSection" class="login-card">
             <h1>Entrada al xat</h1>
-            <form id="loginForm" autocomplete="off">
-                <div class="login-field">
-                    <label for="username">Àlies / Nom (màx. 20 caràcters):</label>
-                    <input id="username" type="text" maxlength="20" placeholder="Ex: Kim" required autofocus />
+            <div class="login-field">
+                <label for="username">Àlies / Nom (màx. 20 caràcters):</label>
+                <input id="username" type="text" maxlength="20" placeholder="Ex: Kim" required autofocus />
+            </div>
+
+            <div class="room-actions">
+                <div class="room-box">
+                    <h3>Crear una sala nova</h3>
+                    <button id="createRoomBtn" type="button" class="login-btn">Crear sala</button>
                 </div>
-                <button id="joinBtn" type="submit" class="login-btn">Entrar al xat</button>
-            </form>
+                <div class="room-box">
+                    <h3>Unir-se a una sala</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <input id="roomCodeInput" type="text" maxlength="10" placeholder="Codi (ex: ABC12)" style="width: 140px; padding: 8px 10px; font-size: 0.95rem; border: 1px solid #9ca3af; border-radius: 6px;" />
+                        <button id="joinRoomBtn" type="button" class="login-btn">Entrar</button>
+                    </div>
+                </div>
+            </div>
+
             <div id="loginError" class="error" aria-live="polite"></div>
         </section>
 
-        <!-- Secció 2: Finestra del xat -->
         <section id="chatSection" class="chat-card hidden">
             <div class="chat-window">
                 <header class="chat-header">
                     <div class="chat-title">Xat Socket.IO</div>
+                    <div>Sala: <strong id="currentRoom"></strong> <button id="copyBtn" type="button" class="login-btn" style="padding: 3px 8px; font-size: 0.8rem; margin-left: 4px;">Copiar codi</button></div>
                     <div class="chat-user">Usuari: <strong id="currentUser"></strong></div>
                     <div id="connectionStatus" class="connection-status">
                         <span id="connectionDot" class="dot"></span> <span id="connectionText">Connectat</span>
                     </div>
+                    <button id="leaveBtn" type="button" class="login-btn" style="padding: 4px 10px; font-size: 0.85rem;">Sortir</button>
                 </header>
 
-                <div id="messages" class="messages" aria-live="polite">
-                    <div class="system-welcome">
-                        <p>Benvingut/da al xat en temps real. Els missatges apareixeran a continuació.</p>
+                <div class="chat-body">
+                    <div class="chat-main">
+                        <div id="messages" class="messages" aria-live="polite">
+                            <div class="system-welcome">
+                                <p>Benvingut/da a la sala. Els missatges apareixeran a continuació.</p>
+                            </div>
+                        </div>
+
+                        <div id="chatErrorMessage" class="error" style="padding: 0 16px; margin: 0;" aria-live="polite"></div>
+
+                        <form class="composer" id="messageForm" autocomplete="off">
+                            <input id="messageInput" type="text" maxlength="500" placeholder="Escriu un missatge..." autocomplete="off" disabled />
+                            <div class="composer-actions">
+                                <button id="simulateDropBtn" type="button" class="secondary-btn" title="Simula un tall temporal de xarxa per provar la recuperació">Simular tall transport</button>
+                                <button id="sendBtn" type="submit" disabled>Enviar</button>
+                            </div>
+                        </form>
                     </div>
+
+                    <aside class="chat-sidebar">
+                        <h3>Participants (<span id="participantCount">0</span>)</h3>
+                        <ul id="participantsList"></ul>
+                    </aside>
                 </div>
-
-                <div id="chatErrorMessage" class="error chat-error" aria-live="polite"></div>
-
-                <form class="composer" id="messageForm" autocomplete="off">
-                    <input id="messageInput" type="text" maxlength="500" placeholder="Escriu un missatge..." autocomplete="off" disabled />
-                    <div class="composer-actions">
-                        <button id="simulateDropBtn" type="button" class="secondary-btn" title="Simula un tall temporal de xarxa per provar la recuperació">Simular tall transport</button>
-                        <button id="sendBtn" type="submit" disabled>Enviar</button>
-                    </div>
-                </form>
 
                 <div id="recoveryStatus" class="recovery-status" aria-live="polite">
                     Estat: Inicialitzant...
@@ -59,21 +80,27 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // Configuració del client Socket.IO segons Ampliació 1
         const socket = io({
             reconnectionDelay: 10000,
             reconnectionDelayMax: 10000,
             randomizationFactor: 0
         });
 
-        // Elements del DOM
+        let myRoom = '';
+        let myUsername = '';
+
         const loginFormSection = document.getElementById('loginFormSection');
-        const loginForm = document.getElementById('loginForm');
         const usernameInput = document.getElementById('username');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const roomCodeInput = document.getElementById('roomCodeInput');
         const loginError = document.getElementById('loginError');
 
         const chatSection = document.getElementById('chatSection');
+        const currentRoom = document.getElementById('currentRoom');
+        const copyBtn = document.getElementById('copyBtn');
         const currentUser = document.getElementById('currentUser');
+        const leaveBtn = document.getElementById('leaveBtn');
         const connectionStatus = document.getElementById('connectionStatus');
         const connectionDot = document.getElementById('connectionDot');
         const connectionText = document.getElementById('connectionText');
@@ -85,12 +112,20 @@
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const simulateDropBtn = document.getElementById('simulateDropBtn');
+        const participantCount = document.getElementById('participantCount');
+        const participantsList = document.getElementById('participantsList');
 
-        // Funció per afegir missatges al xat amb textContent (prevé XSS)
-        function addMessage({ author, text, time, isSelf }) {
+        function addMessage({ author, text, time, isSelf, isSystem }) {
             const messageEl = document.createElement('div');
-            messageEl.className = `message ${isSelf ? 'self' : ''}`;
+            if (isSystem) {
+                messageEl.className = 'message system';
+                messageEl.textContent = `[${time}] ${text}`;
+                messagesContainer.appendChild(messageEl);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                return;
+            }
 
+            messageEl.className = `message ${isSelf ? 'self' : ''}`;
             const headerEl = document.createElement('div');
             headerEl.className = 'message-header';
 
@@ -104,7 +139,7 @@
 
             const textEl = document.createElement('p');
             textEl.className = 'message-text';
-            textEl.textContent = text; // Important: textContent per seguretat
+            textEl.textContent = text;
 
             headerEl.appendChild(authorEl);
             headerEl.appendChild(timeEl);
@@ -115,10 +150,9 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Funció per actualitzar l'estat visual de connexió
         function updateConnectionState() {
             const connected = socket.connected;
-            const hasUser = currentUser.textContent.trim().length > 0;
+            const hasRoom = Boolean(myRoom);
 
             if (connected) {
                 connectionStatus.classList.remove('offline');
@@ -130,69 +164,63 @@
                 connectionText.textContent = 'Desconnectat';
             }
 
-            // Mentre està desconnectat, desactivem l'enviament però CONSERVEM el text que s'estava escrivint
-            messageInput.disabled = !connected || !hasUser;
-            sendBtn.disabled = !connected || !hasUser;
-            simulateDropBtn.disabled = !connected || !hasUser;
+            messageInput.disabled = !connected || !hasRoom;
+            sendBtn.disabled = !connected || !hasRoom;
+            simulateDropBtn.disabled = !connected || !hasRoom;
         }
 
-        // Funció per actualitzar l'estat de recuperació (Ampliació 1)
         function updateRecoveryStatus(text, statusType) {
             recoveryStatus.textContent = text;
             recoveryStatus.className = `recovery-status status-${statusType}`;
         }
 
-        // 1. Gestió del formulari d'entrada
-        loginForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            const name = usernameInput.value.trim();
-
-            if (!name || name.length > 20) {
-                loginError.textContent = 'El nom no pot estar buit ni superar els 20 caràcters.';
-                return;
-            }
-
+        createRoomBtn.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            if (!username) return loginError.textContent = 'El nom no pot estar buit.';
             loginError.textContent = '';
-            socket.emit('join-chat', { name });
+            socket.emit('room:create', { username });
         });
 
-        // 2. Enviament de missatges
+        joinRoomBtn.addEventListener('click', () => {
+            const username = usernameInput.value.trim();
+            const roomId = roomCodeInput.value.trim().toUpperCase();
+            if (!username) return loginError.textContent = 'El nom no pot estar buit.';
+            if (!roomId) return loginError.textContent = 'Introdueix un codi de sala.';
+            loginError.textContent = '';
+            socket.emit('room:join', { username, roomId });
+        });
+
+        leaveBtn.addEventListener('click', () => {
+            socket.emit('room:leave');
+        });
+
+        copyBtn.addEventListener('click', () => {
+            if (!myRoom) return;
+            navigator.clipboard.writeText(myRoom);
+            const originalText = copyBtn.textContent;
+            copyBtn.textContent = 'Copiat!';
+            setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+        });
+
         messageForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (!socket.connected) return;
-
             const text = messageInput.value.trim();
             if (!text) return;
 
-            if (text.length > 500) {
-                chatErrorMessage.textContent = 'El missatge no pot superar els 500 caràcters.';
-                return;
-            }
-
             chatErrorMessage.textContent = '';
-            socket.emit('chat:send', {
-                username: currentUser.textContent.trim(),
-                text
-            });
-
+            socket.emit('chat:send', { text });
             messageInput.value = '';
             messageInput.focus();
         });
 
-        // 3. Botó de prova: Simular tall de transport segons Ampliació 1
-        // L'enunciat demana tancar el transport amb socket.io.engine.close() i NO amb socket.disconnect()
         simulateDropBtn.addEventListener('click', () => {
             if (socket.io && socket.io.engine) {
-                console.log('Simulant tall de transport via socket.io.engine.close()...');
                 socket.io.engine.close();
             }
         });
 
-        // 4. Esdeveniments de Socket.IO registrats UNA SOLA VEGADA fora de 'connect'
         socket.on('connect', () => {
             updateConnectionState();
-
-            // Comprovació estricta de socket.recovered segons l'enunciat
             if (socket.recovered) {
                 updateRecoveryStatus('Sessió recuperada amb èxit (socket.recovered: true)', 'success');
             } else {
@@ -205,34 +233,69 @@
             updateRecoveryStatus(`Tall detectat (${reason}). Intentant reconnexió automàtica (10s)...`, 'warning');
         });
 
-        socket.on('join-success', ({ username }) => {
+        socket.on('room:joined', ({ roomId, username }) => {
+            myRoom = roomId;
+            myUsername = username;
+            currentRoom.textContent = roomId;
             currentUser.textContent = username;
+
+            messagesContainer.innerHTML = `
+                <div class="system-welcome">
+                    <p>Has entrat a la sala <strong>${roomId}</strong>. Els missatges només s'enviaran als participants d'aquesta sala.</p>
+                </div>
+            `;
+
             loginFormSection.classList.add('hidden');
             chatSection.classList.remove('hidden');
             updateConnectionState();
             messageInput.focus();
         });
 
-        socket.on('join-error', ({ message }) => {
-            loginError.textContent = message || 'Nom invàlid.';
+        socket.on('room:left', () => {
+            myRoom = '';
+            chatSection.classList.add('hidden');
+            loginFormSection.classList.remove('hidden');
+            roomCodeInput.value = '';
+            updateConnectionState();
+            roomCodeInput.focus();
         });
 
-        socket.on('chat:message', (message) => {
-            chatErrorMessage.textContent = '';
-            const isSelf = message.username === currentUser.textContent.trim();
-            addMessage({
-                author: message.username,
-                text: message.text,
-                time: message.time,
-                isSelf
+        socket.on('room:error', (err) => {
+            loginError.textContent = typeof err === 'string' ? err : (err?.message || 'Error de sala.');
+        });
+
+        socket.on('room:participants', (participants) => {
+            const list = Array.isArray(participants) ? participants : (participants.participants || []);
+            participantCount.textContent = list.length;
+            participantsList.innerHTML = '';
+            list.forEach((p) => {
+                const name = typeof p === 'string' ? p : p.username;
+                const li = document.createElement('li');
+                li.textContent = name + (name === myUsername ? ' (Tu)' : '');
+                if (name === myUsername) li.classList.add('self');
+                participantsList.appendChild(li);
             });
         });
 
-        socket.on('chat:error', ({ message }) => {
-            chatErrorMessage.textContent = message || 'Error en enviar el missatge.';
+        socket.on('chat:message', (msg) => {
+            chatErrorMessage.textContent = '';
+            if (msg.type === 'system') {
+                addMessage({ text: msg.text, time: msg.time, isSystem: true });
+            } else {
+                addMessage({
+                    author: msg.username,
+                    text: msg.text,
+                    time: msg.time,
+                    isSelf: msg.username === myUsername,
+                    isSystem: false
+                });
+            }
         });
 
-        // Inicialització visual inicial
+        socket.on('chat:error', (err) => {
+            chatErrorMessage.textContent = typeof err === 'string' ? err : (err?.message || 'Error en enviar el missatge.');
+        });
+
         updateConnectionState();
     </script>
 </body>

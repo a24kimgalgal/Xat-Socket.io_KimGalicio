@@ -11,83 +11,126 @@ const io = new Server(server, {
 });
 
 const PORT = 6969;
+const activeRooms = new Map();
 
-function isValidName(value) {
-    return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 20;
+function getTime() {
+    return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function isValidText(value) {
-    return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 500;
+function getRoomParticipants(roomId) {
+    const sids = io.sockets.adapter.rooms.get(roomId);
+    if (!sids) return [];
+    const list = [];
+    for (const sid of sids) {
+        const s = io.sockets.sockets.get(sid);
+        if (s && s.data.username) list.push(s.data.username);
+    }
+    return list;
+}
+
+function updateParticipants(roomId) {
+    io.to(roomId).emit('room:participants', getRoomParticipants(roomId));
+}
+
+function leaveRoom(socket) {
+    const roomId = socket.data.roomId;
+    if (!roomId) return;
+
+    const username = socket.data.username;
+    socket.leave(roomId);
+    socket.data.roomId = null;
+
+    const room = io.sockets.adapter.rooms.get(roomId);
+    if (!room || room.size === 0) {
+        activeRooms.delete(roomId);
+    } else {
+        io.to(roomId).emit('chat:message', {
+            type: 'system',
+            text: `${username} ha sortit de la sala.`,
+            time: getTime()
+        });
+        updateParticipants(roomId);
+    }
 }
 
 app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
-    if (socket.recovered) {
-        console.log(`[Connexió recuperada] Socket ID: ${socket.id} (Usuari: ${socket.data.username || 'Anònim'})`);
-    } else {
-        console.log(`[Nova connexió] Socket ID: ${socket.id}`);
-    }
-
-    socket.on('join-chat', (payload = {}) => {
-        const name = typeof payload?.name === 'string' ? payload.name : '';
-        const cleanName = name.trim();
-
-        if (!isValidName(cleanName)) {
-            socket.emit('join-error', {
-                message: 'El nom no és vàlid. Ha de tenir entre 1 i 20 caràcters.'
-            });
-            return;
+    socket.on('room:create', ({ username }) => {
+        const cleanName = (username || '').trim();
+        if (!cleanName || cleanName.length > 20) {
+            return socket.emit('room:error', 'El nom no és vàlid.');
         }
+
+        if (socket.data.roomId) leaveRoom(socket);
+
+        const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
+        activeRooms.set(roomId, true);
 
         socket.data.username = cleanName;
-        console.log(`Usuari registrat: ${cleanName} (${socket.id})`);
-        socket.emit('join-success', { username: cleanName });
+        socket.data.roomId = roomId;
+        socket.join(roomId);
+
+        socket.emit('room:joined', { roomId, username: cleanName });
+        io.to(roomId).emit('chat:message', {
+            type: 'system',
+            text: `Sala creada. Codi: ${roomId}`,
+            time: getTime()
+        });
+        updateParticipants(roomId);
     });
 
-    socket.on('chat:send', (payload = {}) => {
-        const username = typeof payload?.username === 'string' && payload.username.trim()
-            ? payload.username.trim()
-            : (typeof socket.data.username === 'string' ? socket.data.username : '');
-        const text = typeof payload?.text === 'string' ? payload.text : '';
-        const cleanUsername = username.trim();
-        const cleanText = text.trim();
+    socket.on('room:join', ({ username, roomId }) => {
+        const cleanName = (username || '').trim();
+        const cleanRoom = (roomId || '').trim().toUpperCase();
 
-        if (!isValidName(cleanUsername)) {
-            socket.emit('chat:error', {
-                message: 'Nom d’usuari invàlid o no registrat.'
-            });
-            return;
+        if (!cleanName || cleanName.length > 20) {
+            return socket.emit('room:error', 'El nom no és vàlid.');
         }
 
-        if (!isValidText(cleanText)) {
-            socket.emit('chat:error', {
-                message: 'El missatge no pot estar buit ni superar els 500 caràcters.'
-            });
-            return;
+        if (!activeRooms.has(cleanRoom)) {
+            return socket.emit('room:error', `La sala "${cleanRoom}" no existeix.`);
         }
 
-        const message = {
-            id: Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-            username: cleanUsername,
+        if (socket.data.roomId) leaveRoom(socket);
+
+        socket.data.username = cleanName;
+        socket.data.roomId = cleanRoom;
+        socket.join(cleanRoom);
+
+        socket.emit('room:joined', { roomId: cleanRoom, username: cleanName });
+        io.to(cleanRoom).emit('chat:message', {
+            type: 'system',
+            text: `${cleanName} s'ha unit a la sala.`,
+            time: getTime()
+        });
+        updateParticipants(cleanRoom);
+    });
+
+    socket.on('room:leave', () => {
+        leaveRoom(socket);
+        socket.emit('room:left');
+    });
+
+    socket.on('chat:send', ({ text }) => {
+        const roomId = socket.data.roomId;
+        const cleanText = (text || '').trim();
+
+        if (!roomId || !cleanText) return;
+
+        io.to(roomId).emit('chat:message', {
+            type: 'user',
+            username: socket.data.username,
             text: cleanText,
-            time: new Date().toLocaleTimeString([], {
-                hour: '2-digit',
-                minute: '2-digit',
-                hour12: false
-            })
-        };
-
-        console.log(`[Missatge] [${message.time}] ${cleanUsername}: ${cleanText}`);
-
-        io.emit('chat:message', message);
+            time: getTime()
+        });
     });
 
-    socket.on('disconnect', (reason) => {
-        console.log(`[Desconnectat] Socket ID: ${socket.id} - Raó: ${reason}`);
+    socket.on('disconnecting', () => {
+        leaveRoom(socket);
     });
 });
 
 server.listen(PORT, () => {
-    console.log(`Servidor del xat actiu a http://localhost:${PORT}`);
+    console.log(`Servidor actiu a http://localhost:${PORT}`);
 });

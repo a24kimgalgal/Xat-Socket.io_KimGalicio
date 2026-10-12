@@ -249,19 +249,52 @@ body {
     cursor: not-allowed;
 }
 
+.system-welcome {
+    text-align: center;
+    color: #6b7280;
+    font-size: 0.85rem;
+    font-style: italic;
+    padding: 8px 0;
+    border-bottom: 1px dashed #e5e7eb;
+    margin-bottom: 8px;
+}
+
+.system-welcome p {
+    margin: 0;
+}
+
+.chat-error {
+    padding: 4px 16px;
+    margin: 0;
+}
+
 .recovery-status {
-    padding: 8px 16px 16px;
-    font-size: 0.9rem;
+    padding: 10px 16px 14px;
+    font-size: 0.85rem;
     font-weight: 600;
-    color: #1f2937;
+    color: #4b5563;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
 }
 
-.recovery-status.success {
+.recovery-status.status-success {
     color: #166534;
+    background: #f0fdf4;
 }
 
-.recovery-status.warning {
+.recovery-status.status-warning {
     color: #92400e;
+    background: #fefce8;
+}
+
+.recovery-status.status-danger {
+    color: #991b1b;
+    background: #fef2f2;
+}
+
+.recovery-status.status-neutral {
+    color: #374151;
+    background: #f3f4f6;
 }
 
 @media (max-width: 600px) {

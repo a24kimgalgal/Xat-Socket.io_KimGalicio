@@ -4,82 +4,95 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Xat Socket.IO</title>
+    <title>Xat en temps real - Socket.IO</title>
     <link rel="stylesheet" href="/styles.css" />
 </head>
 
 <body>
     <main class="app">
+        <!-- Secció 1: Formulari d'entrada -->
         <section id="loginFormSection" class="login-card">
             <h1>Entrada al xat</h1>
-            <div class="login-field">
-                <label for="username">Nom</label>
-                <input id="username" type="text" maxlength="20" placeholder="Escriu el teu nom" />
-            </div>
-            <button id="joinBtn" type="button" class="login-btn">Entrar</button>
-            <div id="errorMessage" class="error" aria-live="polite"></div>
+            <form id="loginForm" autocomplete="off">
+                <div class="login-field">
+                    <label for="username">Àlies / Nom (màx. 20 caràcters):</label>
+                    <input id="username" type="text" maxlength="20" placeholder="Ex: Kim" required autofocus />
+                </div>
+                <button id="joinBtn" type="submit" class="login-btn">Entrar al xat</button>
+            </form>
+            <div id="loginError" class="error" aria-live="polite"></div>
         </section>
 
+        <!-- Secció 2: Finestra del xat -->
         <section id="chatSection" class="chat-card hidden">
             <div class="chat-window">
                 <header class="chat-header">
-                    <div class="chat-title">Xat</div>
+                    <div class="chat-title">Xat Socket.IO</div>
                     <div class="chat-user">Usuari: <strong id="currentUser"></strong></div>
-                    <div id="connectionStatus" class="connection-status"><span id="connectionDot" class="dot"></span> En línia</div>
+                    <div id="connectionStatus" class="connection-status">
+                        <span id="connectionDot" class="dot"></span> <span id="connectionText">Connectat</span>
+                    </div>
                 </header>
 
                 <div id="messages" class="messages" aria-live="polite">
-                    <div class="message">
-                        <div class="message-header">
-                            <span class="message-author">Sistema</span>
-                            <span class="message-time">12:00</span>
-                        </div>
-                        <p class="message-text">Aquí apareixeran els missatges del xat.</p>
+                    <div class="system-welcome">
+                        <p>Benvingut/da al xat en temps real. Els missatges apareixeran a continuació.</p>
                     </div>
                 </div>
 
-                <form class="composer" id="messageForm">
-                    <input id="messageInput" type="text" placeholder="Escriu un missatge..." autocomplete="off" disabled />
+                <div id="chatErrorMessage" class="error chat-error" aria-live="polite"></div>
+
+                <form class="composer" id="messageForm" autocomplete="off">
+                    <input id="messageInput" type="text" maxlength="500" placeholder="Escriu un missatge..." autocomplete="off" disabled />
                     <div class="composer-actions">
-                        <button id="disconnectBtn" type="button" class="secondary-btn">Desconnectar</button>
+                        <button id="simulateDropBtn" type="button" class="secondary-btn" title="Simula un tall temporal de xarxa per provar la recuperació">Simular tall transport</button>
                         <button id="sendBtn" type="submit" disabled>Enviar</button>
                     </div>
                 </form>
-                <div id="recoveryStatus" class="recovery-status" aria-live="polite">Estat de recuperació: pendent</div>
+
+                <div id="recoveryStatus" class="recovery-status" aria-live="polite">
+                    Estat: Inicialitzant...
+                </div>
             </div>
         </section>
     </main>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
+        // Configuració del client Socket.IO segons Ampliació 1
         const socket = io({
             reconnectionDelay: 10000,
             reconnectionDelayMax: 10000,
             randomizationFactor: 0
         });
 
-        const usernameInput = document.getElementById('username');
-        const joinBtn = document.getElementById('joinBtn');
-        const errorMessage = document.getElementById('errorMessage');
+        // Elements del DOM
         const loginFormSection = document.getElementById('loginFormSection');
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const loginError = document.getElementById('loginError');
+
         const chatSection = document.getElementById('chatSection');
         const currentUser = document.getElementById('currentUser');
-        const messageForm = document.getElementById('messageForm');
-        const messageInput = document.getElementById('messageInput');
-        const messagesContainer = document.getElementById('messages');
-        const sendBtn = document.getElementById('sendBtn');
-        const disconnectBtn = document.getElementById('disconnectBtn');
         const connectionStatus = document.getElementById('connectionStatus');
+        const connectionDot = document.getElementById('connectionDot');
+        const connectionText = document.getElementById('connectionText');
         const recoveryStatus = document.getElementById('recoveryStatus');
 
-        let lastMessageId = 0;
+        const messagesContainer = document.getElementById('messages');
+        const chatErrorMessage = document.getElementById('chatErrorMessage');
+        const messageForm = document.getElementById('messageForm');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const simulateDropBtn = document.getElementById('simulateDropBtn');
 
+        // Funció per afegir missatges al xat amb textContent (prevé XSS)
         function addMessage({ author, text, time, isSelf }) {
-            const message = document.createElement('div');
-            message.className = `message ${isSelf ? 'self' : ''}`;
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${isSelf ? 'self' : ''}`;
 
-            const header = document.createElement('div');
-            header.className = 'message-header';
+            const headerEl = document.createElement('div');
+            headerEl.className = 'message-header';
 
             const authorEl = document.createElement('span');
             authorEl.className = 'message-author';
@@ -91,93 +104,105 @@
 
             const textEl = document.createElement('p');
             textEl.className = 'message-text';
-            textEl.textContent = text;
+            textEl.textContent = text; // Important: textContent per seguretat
 
-            header.appendChild(authorEl);
-            header.appendChild(timeEl);
-            message.appendChild(header);
-            message.appendChild(textEl);
-            messagesContainer.appendChild(message);
+            headerEl.appendChild(authorEl);
+            headerEl.appendChild(timeEl);
+            messageEl.appendChild(headerEl);
+            messageEl.appendChild(textEl);
+
+            messagesContainer.appendChild(messageEl);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
+        // Funció per actualitzar l'estat visual de connexió
         function updateConnectionState() {
             const connected = socket.connected;
             const hasUser = currentUser.textContent.trim().length > 0;
 
-            connectionStatus.classList.toggle('offline', !connected);
-            connectionStatus.innerHTML = `<span class="dot ${connected ? '' : 'offline'}"></span> ${connected ? 'En línia' : 'Desconnectat'}`;
+            if (connected) {
+                connectionStatus.classList.remove('offline');
+                connectionDot.classList.remove('offline');
+                connectionText.textContent = 'En línia';
+            } else {
+                connectionStatus.classList.add('offline');
+                connectionDot.classList.add('offline');
+                connectionText.textContent = 'Desconnectat';
+            }
+
+            // Mentre està desconnectat, desactivem l'enviament però CONSERVEM el text que s'estava escrivint
             messageInput.disabled = !connected || !hasUser;
             sendBtn.disabled = !connected || !hasUser;
-            disconnectBtn.disabled = !hasUser;
-            disconnectBtn.textContent = connected ? 'Desconnectar' : 'Connectar';
+            simulateDropBtn.disabled = !connected || !hasUser;
         }
 
-        function updateRecoveryStatus(message) {
-            recoveryStatus.textContent = message;
-            recoveryStatus.classList.toggle('success', message.includes('correcta'));
-            recoveryStatus.classList.toggle('warning', !message.includes('correcta'));
+        // Funció per actualitzar l'estat de recuperació (Ampliació 1)
+        function updateRecoveryStatus(text, statusType) {
+            recoveryStatus.textContent = text;
+            recoveryStatus.className = `recovery-status status-${statusType}`;
         }
 
-        joinBtn.addEventListener('click', () => {
+        // 1. Gestió del formulari d'entrada
+        loginForm.addEventListener('submit', (e) => {
+            e.preventDefault();
             const name = usernameInput.value.trim();
 
             if (!name || name.length > 20) {
-                errorMessage.textContent = 'El nom no pot estar buit ni tenir més de 20 caràcters.';
+                loginError.textContent = 'El nom no pot estar buit ni superar els 20 caràcters.';
                 return;
             }
 
-            errorMessage.textContent = '';
+            loginError.textContent = '';
             socket.emit('join-chat', { name });
         });
 
-        messageForm.addEventListener('submit', (event) => {
-            event.preventDefault();
-
-            if (!socket.connected) {
-                return;
-            }
+        // 2. Enviament de missatges
+        messageForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (!socket.connected) return;
 
             const text = messageInput.value.trim();
-            if (!text) {
+            if (!text) return;
+
+            if (text.length > 500) {
+                chatErrorMessage.textContent = 'El missatge no pot superar els 500 caràcters.';
                 return;
             }
 
+            chatErrorMessage.textContent = '';
             socket.emit('chat:send', {
                 username: currentUser.textContent.trim(),
                 text
             });
 
             messageInput.value = '';
+            messageInput.focus();
         });
 
-        disconnectBtn.addEventListener('click', () => {
-            if (!currentUser.textContent.trim()) {
-                return;
-            }
-
-            if (socket.connected) {
-                socket.disconnect();
-            } else {
-                socket.connect();
+        // 3. Botó de prova: Simular tall de transport segons Ampliació 1
+        // L'enunciat demana tancar el transport amb socket.io.engine.close() i NO amb socket.disconnect()
+        simulateDropBtn.addEventListener('click', () => {
+            if (socket.io && socket.io.engine) {
+                console.log('Simulant tall de transport via socket.io.engine.close()...');
+                socket.io.engine.close();
             }
         });
 
+        // 4. Esdeveniments de Socket.IO registrats UNA SOLA VEGADA fora de 'connect'
         socket.on('connect', () => {
-            const params = new URLSearchParams({ lastMessageId: String(lastMessageId) });
-            socket.io.opts.query = params.toString();
             updateConnectionState();
-            updateRecoveryStatus('Recuperació: pendent');
+
+            // Comprovació estricta de socket.recovered segons l'enunciat
+            if (socket.recovered) {
+                updateRecoveryStatus('Sessió recuperada amb èxit (socket.recovered: true)', 'success');
+            } else {
+                updateRecoveryStatus('Sessió nova o estat no recuperat (socket.recovered: false)', 'neutral');
+            }
         });
 
-        socket.on('reconnect', () => {
+        socket.on('disconnect', (reason) => {
             updateConnectionState();
-            updateRecoveryStatus('Recuperació: correcta');
-        });
-
-        socket.on('disconnect', () => {
-            updateConnectionState();
-            updateRecoveryStatus('Desconnectat. Recuperació pendent');
+            updateRecoveryStatus(`Tall detectat (${reason}). Intentant reconnexió automàtica (10s)...`, 'warning');
         });
 
         socket.on('join-success', ({ username }) => {
@@ -185,17 +210,15 @@
             loginFormSection.classList.add('hidden');
             chatSection.classList.remove('hidden');
             updateConnectionState();
+            messageInput.focus();
         });
 
         socket.on('join-error', ({ message }) => {
-            errorMessage.textContent = message || 'El nom no és vàlid.';
+            loginError.textContent = message || 'Nom invàlid.';
         });
 
         socket.on('chat:message', (message) => {
-            if (message.id > lastMessageId) {
-                lastMessageId = message.id;
-            }
-
+            chatErrorMessage.textContent = '';
             const isSelf = message.username === currentUser.textContent.trim();
             addMessage({
                 author: message.username,
@@ -205,25 +228,11 @@
             });
         });
 
-        socket.on('chat:missed', (messages) => {
-            messages.forEach((message) => {
-                if (message.id > lastMessageId) {
-                    lastMessageId = message.id;
-                }
-
-                addMessage({
-                    author: message.username,
-                    text: message.text,
-                    time: message.time,
-                    isSelf: message.username === currentUser.textContent.trim()
-                });
-            });
-        });
-
         socket.on('chat:error', ({ message }) => {
-            errorMessage.textContent = message || 'El missatge no és vàlid.';
+            chatErrorMessage.textContent = message || 'Error en enviar el missatge.';
         });
 
+        // Inicialització visual inicial
         updateConnectionState();
     </script>
 </body>

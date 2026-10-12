@@ -11,7 +11,6 @@ const io = new Server(server, {
 });
 
 const PORT = 6969;
-const messages = [];
 
 function isValidName(value) {
     return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= 20;
@@ -24,18 +23,15 @@ function isValidText(value) {
 app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
-    const lastMessageId = socket.handshake.query?.lastMessageId;
-    const lastId = Number(lastMessageId) || 0;
-
-    const missedMessages = messages.filter((message) => message.id > lastId);
-    if (missedMessages.length > 0) {
-        socket.emit('chat:missed', missedMessages);
+    if (socket.recovered) {
+        console.log(`[Connexió recuperada] Socket ID: ${socket.id} (Usuari: ${socket.data.username || 'Anònim'})`);
+    } else {
+        console.log(`[Nova connexió] Socket ID: ${socket.id}`);
     }
 
     socket.on('join-chat', (payload = {}) => {
         const name = typeof payload?.name === 'string' ? payload.name : '';
         const cleanName = name.trim();
-        console.log(`Usuari connectat: ${cleanName}`);
 
         if (!isValidName(cleanName)) {
             socket.emit('join-error', {
@@ -45,24 +41,34 @@ io.on('connection', (socket) => {
         }
 
         socket.data.username = cleanName;
+        console.log(`Usuari registrat: ${cleanName} (${socket.id})`);
         socket.emit('join-success', { username: cleanName });
     });
 
     socket.on('chat:send', (payload = {}) => {
-        const username = typeof payload?.username === 'string' ? payload.username : typeof socket.data.username === 'string' ? socket.data.username : '';
+        const username = typeof payload?.username === 'string' && payload.username.trim()
+            ? payload.username.trim()
+            : (typeof socket.data.username === 'string' ? socket.data.username : '');
         const text = typeof payload?.text === 'string' ? payload.text : '';
         const cleanUsername = username.trim();
         const cleanText = text.trim();
 
-        if (!isValidName(cleanUsername) || !isValidText(cleanText)) {
+        if (!isValidName(cleanUsername)) {
             socket.emit('chat:error', {
-                message: 'El nom o el missatge no són vàlids.'
+                message: 'Nom d’usuari invàlid o no registrat.'
+            });
+            return;
+        }
+
+        if (!isValidText(cleanText)) {
+            socket.emit('chat:error', {
+                message: 'El missatge no pot estar buit ni superar els 500 caràcters.'
             });
             return;
         }
 
         const message = {
-            id: Date.now() + Math.random(),
+            id: Date.now() + '-' + Math.random().toString(36).substring(2, 7),
             username: cleanUsername,
             text: cleanText,
             time: new Date().toLocaleTimeString([], {
@@ -72,14 +78,13 @@ io.on('connection', (socket) => {
             })
         };
 
-        console.log(`Missatge enviat per ${cleanUsername}: ${cleanText}`);
-
-        messages.push(message);
-        if (messages.length > 200) {
-            messages.shift();
-        }
+        console.log(`[Missatge] [${message.time}] ${cleanUsername}: ${cleanText}`);
 
         io.emit('chat:message', message);
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.log(`[Desconnectat] Socket ID: ${socket.id} - Raó: ${reason}`);
     });
 });
 
